@@ -1,0 +1,71 @@
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+# Load the data
+data = pd.read_csv('sample_dataset.csv')
+
+# Handling missing values
+data_cleaned = data.dropna()
+
+# Removing duplicates
+data_cleaned = data_cleaned.drop_duplicates()
+
+# Identifying numerical and categorical columns
+numerical_cols = data_cleaned.select_dtypes(include=['int64', 'float64']).columns
+categorical_cols = data_cleaned.select_dtypes(include=['object']).columns
+
+# Preprocessing pipeline
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), numerical_cols),
+        ('cat', OneHotEncoder(), categorical_cols)
+    ])
+
+# Applying the transformations
+data_transformed = preprocessor.fit_transform(data_cleaned)
+
+# Converting the result back to a DataFrame
+data_transformed_df = pd.DataFrame(data_transformed)
+
+# Assuming the last column is the target variable for classification
+# Create a binary target variable based on income (e.g., >70000 is 1, otherwise 0)
+data_cleaned['target'] = (data_cleaned['income'] > 70000).astype(int)
+X = data_transformed_df.iloc[:, :-1]
+y = data_cleaned['target']
+
+# Splitting the data
+X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.3, random_state=42)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
+# List of models to evaluate
+models = {
+    "Logistic Regression": LogisticRegression(),
+    "Decision Tree": DecisionTreeClassifier(),
+    "Random Forest": RandomForestClassifier()
+}
+
+# Function to evaluate a model
+def evaluate_model(model, X_train, y_train, X_val, y_val):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_val)
+    accuracy = accuracy_score(y_val, y_pred)
+    precision = precision_score(y_val, y_pred)
+    recall = recall_score(y_val, y_pred)
+    f1 = f1_score(y_val, y_pred)
+    return accuracy, precision, recall, f1
+
+# Evaluate each model and print results
+for model_name, model in models.items():
+    accuracy, precision, recall, f1 = evaluate_model(model, X_train, y_train, X_val, y_val)
+    print(f"Model: {model_name}")
+    print(f"  Accuracy: {accuracy:.4f}")
+    print(f"  Precision: {precision:.4f}")
+    print(f"  Recall: {recall:.4f}")
+    print(f"  F1 Score: {f1:.4f}")
+    print()
